@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: coupons
+      POSTGRES_USER: coupons
+      POSTGRES_PASSWORD: coupons
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coupons -d coupons"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/coupons
+      DB_USER: coupons
+      DB_PASSWORD: coupons
+      # demo-only secret; any real deployment must override
+      JWT_SECRET: demo-secret-change-me-0123456789abcdef
+      # makes redemption work from localhost / private networks in the demo
+      GEOIP_PRIVATE_IP_FALLBACK_COUNTRY: PL
+      # optional: real public-IP lookups need a free IPinfo token (https://ipinfo.io)
+      GEOIP_TOKEN: ${GEOIP_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  pgdata:
